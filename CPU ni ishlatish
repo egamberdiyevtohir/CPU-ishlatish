@@ -1,0 +1,121 @@
+import psutil
+import tkinter as tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+memory_data = []
+cpu_data = []
+update_flag = True
+
+def get_process_memory_usage(process_id):
+    try:
+        process = psutil.Process(process_id)
+        memory_info = process.memory_info()
+        memory_usage_mb = memory_info.rss / (1024 * 1024)  # Convert bytes to megabytes
+        return memory_usage_mb
+    except psutil.NoSuchProcess:
+        return None
+
+def get_process_cpu_usage(process_id):
+    try:
+        process = psutil.Process(process_id)
+        cpu_percent = process.cpu_percent(interval=1)  # CPU usage in percent
+        return cpu_percent
+    except psutil.NoSuchProcess:
+        return None
+
+def get_process_info():
+    global update_flag
+    process_id_text = entry.get()
+    if process_id_text.strip():  # Check if the entry is not empty
+        try:
+            process_id = int(process_id_text)
+            memory_usage = get_process_memory_usage(process_id)
+            cpu_usage = get_process_cpu_usage(process_id)
+            if memory_usage is not None and cpu_usage is not None:
+                memory_data.append(memory_usage)
+                cpu_data.append(cpu_usage)
+                ax[0].cla()  # Clear the previous plot
+                ax[0].bar(0, memory_data[-1], color='red')  # Change to bar chart
+                ax[0].set_title('Xotiradagi Joy (MB)')
+                ax[1].cla()  # Clear the previous plot
+                ax[1].bar(0, cpu_data[-1], color='blue')  # Change to bar chart
+                ax[1].set_title('CPU Ishlatilishi')
+                canvas.draw()
+                result_label.config(text=f"Dastur xotiradagi joy: {memory_usage:.2f} MB\nDastur CPU ishlatilishi: {cpu_usage:.2f}%")
+            else:
+                result_label.config(text="Xatolik: Kiritilgan dastur ID sini topa olmadim!")
+        except ValueError:
+            result_label.config(text="Xatolik: Dastur ID sini raqam ko'rinishida kiriting!")
+    update_flag = True
+
+def stop_update():
+    global update_flag
+    update_flag = False
+
+def save_data():
+    global memory_data, cpu_data
+    with open("process_data.txt", "w") as file:
+        for memory, cpu in zip(memory_data, cpu_data):
+            file.write(f"Memory: {memory:.2f} MB, CPU: {cpu:.2f}%\n")
+    result_label.config(text="Ma'lumotlar fayliga saqlandi: process_data.txt")
+    root.quit()  # Dasturni to'xtatish
+
+def update_plot():
+    global update_flag
+    if update_flag:
+        process_id_text = entry.get()
+        if process_id_text.strip():  # Check if the entry is not empty
+            try:
+                process_id = int(process_id_text)
+                memory_usage = get_process_memory_usage(process_id)
+                cpu_usage = get_process_cpu_usage(process_id)
+                if memory_usage is not None and cpu_usage is not None:
+                    memory_data.append(memory_usage)
+                    cpu_data.append(cpu_usage)
+                    ax[0].cla()  # Clear the previous plot
+                    ax[0].bar(0, memory_data[-1], color='red')  # Change to bar chart
+                    ax[0].set_title('Xotiradagi Joy (MB)')
+                    ax[1].cla()  # Clear the previous plot
+                    ax[1].bar(0, cpu_data[-1], color='blue')  # Change to bar chart
+                    ax[1].set_title('CPU Ishlatilishi')
+                    canvas.draw()
+                    result_label.config(text=f"Dastur xotiradagi joy: {memory_usage:.2f} MB\nDastur CPU ishlatilishi: {cpu_usage:.2f}%")
+                else:
+                    result_label.config(text="Xatolik: Kiritilgan dastur ID sini topa olmadim!")
+            except ValueError:
+                result_label.config(text="Xatolik: Dastur ID sini raqam ko'rinishida kiriting!")
+    root.after(1000, update_plot)
+# Tkinter UI
+root = tk.Tk()
+root.title("Dastur ma'lumoti")
+
+# Entry widget
+entry = tk.Entry(root, width=30)
+entry.pack(pady=10)
+# Button to get process info
+get_info_button = tk.Button(root, text="Ma'lumotni olish", command=get_process_info)
+get_info_button.pack()
+
+# Button to stop updating
+stop_button = tk.Button(root, text="Yangilashni to'xtatish", command=stop_update)
+stop_button.pack()
+
+# Result label
+result_label = tk.Label(root, text="", pady=10)
+result_label.pack()
+
+# Matplotlib figure
+fig, ax = plt.subplots(2, 1, figsize=(5, 6))
+
+# Canvas
+canvas = FigureCanvasTkAgg(fig, master=root)
+canvas_widget = canvas.get_tk_widget()
+canvas_widget.pack()
+# Button to save data
+save_button = tk.Button(root, text="Ma'lmotlarni saqlash", command=save_data)
+save_button.pack()
+
+# Start updating plot
+update_plot()
+
+root.mainloop()
